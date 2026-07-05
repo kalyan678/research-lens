@@ -26,7 +26,7 @@ class Settings:
             ).expanduser(),
             openalex_api_key=os.getenv("OPENALEX_API_KEY") or None,
             ollama_base_url=ollama_base_url.rstrip("/") or None,
-            ollama_model=os.getenv("OLLAMA_MODEL", "qwen3:8b"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "qwen2.5-coder:3b"),
             ollama_timeout_seconds=float(
                 os.getenv("OLLAMA_TIMEOUT_SECONDS", "300")
             ),

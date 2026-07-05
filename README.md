@@ -4,8 +4,10 @@ ResearchLens is a local-first research intelligence assistant. It loads real
 scholarly metadata from OpenAlex into DuckDB and lets users ask analytical
 questions in natural language through a guarded SQL agent backed by Ollama.
 
-The project is intentionally being built in vertical slices. Every phase must
-produce something runnable and testable before the next phase begins.
+**MVP status:** complete as a tested command-line application. The current
+version includes real data ingestion, reusable metrics, a deterministic
+baseline, local model-backed SQL generation, bounded reflection, and read-only
+query enforcement.
 
 ## Product question
 
@@ -23,23 +25,33 @@ Ingestion + normalization
     |
     v
 DuckDB analytical model
+    ^
     |
-    v
-Safe SQL agent (Ollama)
+Natural-language question
     |
-    v
-API/UI: answer + SQL + data + visualization
+    +---- deterministic metric baseline
+    |
+    +---- Ollama -> SQL extraction -> validation
+                                  |
+                                  v
+                         read-only execution
+                                  |
+                    one correction on DuckDB error
 ```
 
-## Delivery roadmap
+## Delivered MVP
 
-1. **Foundation:** configuration, DuckDB, health checks, package structure.
-2. **Data pipeline:** retrieve, normalize, upsert, and incrementally refresh OpenAlex data.
-3. **Analytics model:** documented metrics and curated analytical views.
-4. **Safe SQL agent:** schema selection, SQL generation, validation, execution, and explanation.
-5. **Product interface:** API plus a usable analytical chat interface.
-6. **Evaluation:** gold questions, execution accuracy, safety tests, and latency tracking.
-7. **Production hardening:** migrations, observability, caching, CI, and deployment documentation.
+- OpenAlex ingestion and relational normalization
+- Local DuckDB analytical model
+- Three documented business metrics
+- Validated read-only SQL execution
+- Deterministic natural-language baseline
+- Local Ollama provider with bounded generation
+- One-attempt SQL reflection using DuckDB error feedback
+- Automated behavioural and safety tests
+
+Optional future work includes a web interface, larger evaluation dataset,
+incremental ingestion audit records, caching, CI, and deployment packaging.
 
 ## Milestone 1
 
@@ -59,6 +71,7 @@ Prerequisites:
 - Python 3.11 or newer
 - VS Code with the Microsoft Python extension
 - A free OpenAlex API key
+- Ollama for optional local model-backed questions
 
 Ollama is deliberately optional until the SQL-agent phase. The data pipeline,
 schema, analytical SQL, and tests do not depend on an LLM.
@@ -95,8 +108,9 @@ Edit `.env`:
 ```dotenv
 DATABASE_PATH=data/research_lens.duckdb
 OPENALEX_API_KEY=replace_with_your_key
-OLLAMA_BASE_URL=
-OLLAMA_MODEL=qwen3:8b
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5-coder:3b
+OLLAMA_TIMEOUT_SECONDS=300
 ```
 
 Do not commit or share `.env`.
@@ -187,6 +201,34 @@ gives the error to the model and allows exactly one correction attempt.
 The query command accepts exactly one `SELECT` statement, restricts access to
 ResearchLens tables, blocks external file/network functions, opens DuckDB in
 read-only mode, and caps displayed results.
+
+## Evaluation
+
+The MVP was evaluated on five representative analytical questions using
+`qwen2.5-coder:3b` locally. Initial evaluation exposed ambiguous ranking
+behaviour, missing numeric rounding, and an invalid author-institution join.
+Prompt refinement and a bounded correction loop produced correct executable
+results for all five scenarios. The initial failures and final outcomes are
+recorded in [docs/evaluation.md](docs/evaluation.md).
+
+Run the complete deterministic verification:
+
+```powershell
+pytest -q
+ruff check src tests
+```
+
+## Limitations
+
+- The demonstration database contains only 25 search-selected works and is not
+  representative of the global research landscape.
+- Citation counts measure attention, not research quality, and are affected by
+  publication age and outliers.
+- Small local models can generate valid but unnecessarily complex SQL.
+- Model-backed answers are nondeterministic; the deterministic baseline remains
+  the trusted comparison for the three core metrics.
+- The MVP is a CLI application. A web UI and production deployment are outside
+  the current scope.
 
 ## Engineering principles
 
