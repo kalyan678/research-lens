@@ -157,6 +157,18 @@ research-lens metric open-access-by-year
 research-lens metric primary-topic-impact --max-rows 10
 ```
 
+Ask one of those question families through the deterministic local baseline:
+
+```powershell
+research-lens ask "Which institutions have the most publications?" --max-rows 10
+research-lens ask "What is the open access percentage by year?"
+research-lens ask "Which primary topics have the highest citation impact?" --max-rows 10
+```
+
+The baseline is deliberately labelled as not being an LLM. It routes supported
+question patterns to tested metric SQL, providing a reliable benchmark and a
+fully local fallback while the replaceable model integration is developed.
+
 The query command accepts exactly one `SELECT` statement, restricts access to
 ResearchLens tables, blocks external file/network functions, opens DuckDB in
 read-only mode, and caps displayed results.

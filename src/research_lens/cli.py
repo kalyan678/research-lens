@@ -5,7 +5,9 @@ import sys
 
 import httpx
 
+from research_lens.agent import AgentResult, run_sql_agent
 from research_lens.analytics import METRICS
+from research_lens.baseline import UnsupportedQuestionError, generate_baseline_sql
 from research_lens.config import Settings
 from research_lens.database import (
     connect_database,
@@ -34,6 +36,13 @@ def _build_parser() -> argparse.ArgumentParser:
     metric = subparsers.add_parser("metric", help="Execute one named analytical metric")
     metric.add_argument("name", choices=METRICS)
     metric.add_argument("--max-rows", type=int, default=20)
+
+    ask = subparsers.add_parser(
+        "ask",
+        help="Ask a supported natural-language question using the local baseline",
+    )
+    ask.add_argument("question")
+    ask.add_argument("--max-rows", type=int, default=20)
 
     query = subparsers.add_parser("query", help="Execute one validated read-only SQL query")
     query.add_argument("--sql", required=True)
@@ -131,6 +140,30 @@ def _metric(settings: Settings, name: str, max_rows: int) -> int:
     return _query(settings, metric.sql, max_rows)
 
 
+def _print_agent_result(result: AgentResult, max_rows: int) -> None:
+    print("Provider: deterministic baseline (not an LLM)")
+    print(f"Question: {result.question}")
+    print(f"SQL:\n{result.sql}\n")
+    _print_rows(result.columns, result.rows)
+    print(f"\nReturned {len(result.rows)} row(s), capped at {max_rows}.")
+
+
+def _ask(settings: Settings, question: str, max_rows: int) -> int:
+    try:
+        result = run_sql_agent(
+            question,
+            lambda _prompt: generate_baseline_sql(question),
+            settings.database_path,
+            max_rows=max_rows,
+        )
+    except (UnsupportedQuestionError, UnsafeQueryError, ValueError) as error:
+        print(f"Question rejected: {error}", file=sys.stderr)
+        return 2
+
+    _print_agent_result(result, max_rows)
+    return 0
+
+
 def _query(settings: Settings, sql: str, max_rows: int) -> int:
     if not 1 <= max_rows <= 1_000:
         print("--max-rows must be between 1 and 1000", file=sys.stderr)
@@ -218,6 +251,8 @@ def main() -> int:
         return 0
     if args.command == "metric":
         return _metric(settings, args.name, args.max_rows)
+    if args.command == "ask":
+        return _ask(settings, args.question, args.max_rows)
     if args.command == "query":
         return _query(settings, args.sql, args.max_rows)
     if args.command == "ingest":
