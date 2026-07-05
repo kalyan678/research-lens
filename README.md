@@ -1,109 +1,95 @@
 # ResearchLens
 
-ResearchLens is a local-first research intelligence assistant. It loads real
-scholarly metadata from OpenAlex into DuckDB and lets users ask analytical
-questions in natural language through a guarded SQL agent backed by Ollama.
+ResearchLens is a local-first research intelligence assistant that converts
+natural-language questions into safe, read-only SQL. It ingests scholarly
+metadata from OpenAlex, stores it in DuckDB, and uses either deterministic
+metrics or a local Ollama model to analyse publication trends, institutional
+activity, open-access rates, and topic impact.
 
-**MVP status:** complete as a tested command-line application. The current
-version includes real data ingestion, reusable metrics, a deterministic
-baseline, local model-backed SQL generation, bounded reflection, and read-only
-query enforcement.
+**Current status:** tested command-line MVP.
 
-## Product question
+## Why ResearchLens?
 
-How can a university, R&D team, founder, or research strategist explore
-publication trends, institutional strengths, collaboration networks, open
-access, and citation growth without hand-writing complex SQL?
+Research teams often need answers from scholarly metadata but may not know the
+database schema or the SQL required to query it. ResearchLens provides a
+reproducible local workflow for loading real publication data and exploring it
+in plain language while keeping query execution constrained and inspectable.
+
+## Key capabilities
+
+- Ingest a bounded, searchable slice of real OpenAlex metadata.
+- Normalize works, authors, institutions, topics, sources, and relationships.
+- Store the analytical model locally in DuckDB without a database server or
+  Docker.
+- Run three documented metrics for institutional activity, open access, and
+  primary-topic impact.
+- Translate supported questions through a deterministic baseline or a local
+  Ollama model.
+- Display the generated SQL alongside the result.
+- Parse and validate SQL before opening a read-only database connection.
+- Allow one bounded model correction when DuckDB rejects an otherwise safe
+  query.
+- Verify analytical behaviour and safety controls with automated tests.
 
 ## Architecture
 
 ```text
 OpenAlex API
-    |
-    v
-Ingestion + normalization
-    |
-    v
+     |
+     v
+Ingestion and normalization
+     |
+     v
 DuckDB analytical model
-    ^
-    |
+
 Natural-language question
-    |
-    +---- deterministic metric baseline
-    |
-    +---- Ollama -> SQL extraction -> validation
-                                  |
-                                  v
-                         read-only execution
-                                  |
-                    one correction on DuckDB error
+     |
+     +-- Deterministic metric baseline --+
+     |                                   |
+     +-- Ollama SQL generation ----------+--> SQL validation
+                                                 |
+                                                 v
+                                      Read-only DuckDB execution
+                                                 |
+                                      One bounded correction
+                                      on an execution error
 ```
 
-## Delivered MVP
+## Technology stack
 
-- OpenAlex ingestion and relational normalization
-- Local DuckDB analytical model
-- Three documented business metrics
-- Validated read-only SQL execution
-- Deterministic natural-language baseline
-- Local Ollama provider with bounded generation
-- One-attempt SQL reflection using DuckDB error feedback
-- Automated behavioural and safety tests
+| Component | Purpose |
+|---|---|
+| Python | Application and CLI |
+| OpenAlex | Scholarly metadata source |
+| DuckDB | Embedded analytical database |
+| Ollama | Optional local language-model runtime |
+| SQLGlot | SQL parsing and safety validation |
+| pytest and Ruff | Automated testing and code quality |
 
-Optional future work includes a web interface, larger evaluation dataset,
-incremental ingestion audit records, caching, CI, and deployment packaging.
+## Quick start
 
-## Milestone 1
-
-The first executable milestone is:
-
-```text
-OpenAlex search -> normalize records -> DuckDB -> verify row counts
-```
-
-It deliberately excludes the LLM. If the data layer is unreliable, adding an
-agent only makes the unreliability more theatrical.
-
-## Local setup
-
-Prerequisites:
+### Prerequisites
 
 - Python 3.11 or newer
-- VS Code with the Microsoft Python extension
 - A free OpenAlex API key
-- Ollama for optional local model-backed questions
+- Ollama and a local model only if you want model-generated SQL
 
-Ollama is deliberately optional until the SQL-agent phase. The data pipeline,
-schema, analytical SQL, and tests do not depend on an LLM.
+The ingestion pipeline, analytical metrics, deterministic baseline, and tests
+work without Ollama.
 
-### Day 1: verify Python
+### Install
 
-Open a regular PowerShell window and run:
-
-```powershell
-py --version
-```
-
-If that command fails, install Python from python.org and enable the installer's
-**Add Python to PATH** option. Close and reopen PowerShell afterward.
-
-### Day 1: create the local environment
-
-Open this project folder in VS Code, then open **Terminal > New Terminal**.
-Run:
+The following commands use PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-py -3.11 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-Select `.venv\Scripts\python.exe` if VS Code asks which Python interpreter to
-use.
-
-Edit `.env`:
+Configure `.env`:
 
 ```dotenv
 DATABASE_PATH=data/research_lens.duckdb
@@ -113,25 +99,23 @@ OLLAMA_MODEL=qwen2.5-coder:3b
 OLLAMA_TIMEOUT_SECONDS=300
 ```
 
-Do not commit or share `.env`.
+Do not commit or share `.env`. Leave `OLLAMA_BASE_URL` blank if you are not
+using Ollama.
 
-### Day 1: verify the foundation
+Initialize and verify the application:
 
 ```powershell
-research-lens check
 research-lens init-db
-pytest
+research-lens check
+pytest -q
 ```
 
-`init-db` creates `data/research_lens.duckdb`. DuckDB requires no service,
-database account, port, or Docker container.
+DuckDB runs as a local file and requires no service, account, port, or
+container.
 
-`check` reports Ollama as skipped when `OLLAMA_BASE_URL` is blank. This is
-expected during the data-engineering milestones.
+## Load research data
 
-### Day 2: ingest the first real dataset slice
-
-Ingest a small, inspectable slice:
+This example loads up to 100 works matching a topic and publication period:
 
 ```powershell
 research-lens ingest `
@@ -139,30 +123,20 @@ research-lens ingest `
   --from-year 2024 `
   --to-year 2025 `
   --max-works 100
-```
 
-Check the resulting counts:
-
-```powershell
 research-lens stats
 ```
 
-## Explore the analytical model
+## Explore the data
 
-Inspect a table before querying it:
+Inspect the schema:
 
 ```powershell
 research-lens describe works
 research-lens describe work_author_institutions
 ```
 
-Run one validated, read-only query:
-
-```powershell
-research-lens query --sql "SELECT publication_year, COUNT(*) AS publications FROM works GROUP BY publication_year ORDER BY publication_year"
-```
-
-List and execute the documented business metrics:
+List and run the documented metrics:
 
 ```powershell
 research-lens metrics
@@ -171,7 +145,7 @@ research-lens metric open-access-by-year
 research-lens metric primary-topic-impact --max-rows 10
 ```
 
-Ask one of those question families through the deterministic local baseline:
+Ask a supported question through the deterministic baseline:
 
 ```powershell
 research-lens ask "Which institutions have the most publications?" --max-rows 10
@@ -179,37 +153,43 @@ research-lens ask "What is the open access percentage by year?"
 research-lens ask "Which primary topics have the highest citation impact?" --max-rows 10
 ```
 
-The baseline is deliberately labelled as not being an LLM. It routes supported
-question patterns to tested metric SQL, providing a reliable benchmark and a
-fully local fallback while the replaceable model integration is developed.
-
-After installing Ollama locally and setting `OLLAMA_BASE_URL` and
-`OLLAMA_MODEL` in `.env`, ask unrestricted schema-grounded questions through
-the model. `OLLAMA_TIMEOUT_SECONDS` defaults to 300 for CPU-only laptops:
+Ask a broader, schema-grounded question through Ollama:
 
 ```powershell
-research-lens check
 research-lens ask "How many publications are there by year?" --provider ollama
 ```
 
-The model only proposes SQL. ResearchLens strips optional Markdown fences,
-parses and validates the SQL, rejects non-read-only operations, executes it
-through a read-only DuckDB connection, and caps the returned rows. If DuckDB
-rejects a safe query because of an invalid table-column relationship, the agent
-gives the error to the model and allows exactly one correction attempt.
+You can also execute one validated read-only query directly:
 
-The query command accepts exactly one `SELECT` statement, restricts access to
-ResearchLens tables, blocks external file/network functions, opens DuckDB in
-read-only mode, and caps displayed results.
+```powershell
+research-lens query --sql "SELECT publication_year, COUNT(*) AS publications FROM works GROUP BY publication_year ORDER BY publication_year"
+```
+
+## Safety design
+
+The model proposes SQL but never receives unrestricted database access.
+ResearchLens:
+
+- accepts exactly one `SELECT` statement, including queries beginning with
+  `WITH`;
+- restricts queries to known ResearchLens tables;
+- blocks destructive statements and external file or network functions;
+- executes through a read-only DuckDB connection;
+- caps the number of displayed rows; and
+- sends an execution error back to the model at most once for correction.
+
+These restrictions are enforced in application code rather than relying only
+on prompt instructions.
 
 ## Evaluation
 
-The MVP was evaluated on five representative analytical questions using
-`qwen2.5-coder:3b` locally. Initial evaluation exposed ambiguous ranking
-behaviour, missing numeric rounding, and an invalid author-institution join.
-Prompt refinement and a bounded correction loop produced correct executable
-results for all five scenarios. The initial failures and final outcomes are
-recorded in [docs/evaluation.md](docs/evaluation.md).
+The CLI MVP was evaluated with five representative analytical questions using
+`qwen2.5-coder:3b`. All five scenarios ultimately produced correct executable
+results after prompt refinement, but the initial run included one failure, one
+partial result, and two presentation-quality issues.
+
+See [the evaluation report](docs/evaluation.md) for the acceptance criteria,
+initial outcomes, corrected outcomes, and known model limitations.
 
 Run the complete deterministic verification:
 
@@ -218,26 +198,23 @@ pytest -q
 ruff check src tests
 ```
 
-## Limitations
+## Current limitations
 
-- The demonstration database contains only 25 search-selected works and is not
-  representative of the global research landscape.
-- Citation counts measure attention, not research quality, and are affected by
+- The demonstration database contains only 25 search-selected works and cannot
+  represent the global research landscape.
+- Citation counts indicate attention, not research quality, and are affected by
   publication age and outliers.
-- Small local models can generate valid but unnecessarily complex SQL.
-- Model-backed answers are nondeterministic; the deterministic baseline remains
-  the trusted comparison for the three core metrics.
-- The MVP is a CLI application. A web UI and production deployment are outside
-  the current scope.
+- The five-question evaluation set is too small for a production-quality
+  accuracy claim.
+- Small local models can produce valid but unnecessarily complex SQL, and their
+  outputs are nondeterministic.
+- The current release provides a CLI; a web interface and deployment packaging
+  are not yet included.
 
-## Engineering principles
+## Roadmap
 
-- The agent opens the DuckDB file in read-only mode.
-- Generated SQL is parsed and validated before execution.
-- Destructive statements are rejected in code, not merely discouraged in a prompt.
-- Every business metric has a written definition.
-- Agent quality is measured with reproducible questions and expected results.
-- Raw API payloads are never treated as a ready-made analytical schema.
-- Relationships are represented by stable OpenAlex IDs and validated by tests.
-  DuckDB foreign-key constraints are intentionally omitted because its current
-  update implementation cannot update referenced parent rows safely.
+- Add a local web interface for interactive questions and result tables.
+- Expand the demonstration dataset and evaluation suite.
+- Add continuous integration and release-quality documentation.
+- Explore caching, incremental-ingestion audit records, and deployment
+  packaging.

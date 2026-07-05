@@ -29,7 +29,7 @@ business-result correctness.
 | Scenario | Initial outcome | Final outcome | Observation |
 |---|---|---|---|
 | Publications by year | Pass | Pass | Correct counts; initial SQL omitted deterministic ordering. |
-| Institution publication ranking | Partial | Pass | “Most” initially produced only one row; an explicit top-10 request produced the correct ranking. |
+| Institution publication ranking | Partial | Pass | "Most" initially produced only one row; an explicit top-10 request produced the correct ranking. |
 | Open-access percentage by year | Pass with presentation issue | Pass | Arithmetic was correct; initial output was not rounded to two decimals. |
 | Primary-topic publication and citation impact | Pass with presentation issue | Pass | Joins, primary-topic filter, aggregation, and ranking were correct; one average was not rounded. |
 | Authors and institutions for a named paper | Fail | Pass after prompt refinement | The initial SQL referenced `institution_id` on `work_authors`. Explicit affiliation guidance produced all eight expected author-institution rows. |
