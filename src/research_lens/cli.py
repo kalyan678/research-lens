@@ -5,7 +5,7 @@ import sys
 
 import httpx
 
-from research_lens.agent import AgentResult, run_sql_agent
+from research_lens.agent import AgentQueryExecutionError, AgentResult, run_sql_agent
 from research_lens.analytics import METRICS
 from research_lens.baseline import UnsupportedQuestionError, generate_baseline_sql
 from research_lens.config import Settings
@@ -15,6 +15,7 @@ from research_lens.database import (
     initialize_schema,
 )
 from research_lens.normalization import normalize_work
+from research_lens.ollama import OllamaResponseError, generate_ollama_sql
 from research_lens.openalex import OpenAlexClient
 from research_lens.repository import ResearchRepository
 from research_lens.schema import ALL_TABLES, CORE_TABLES
@@ -39,9 +40,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     ask = subparsers.add_parser(
         "ask",
-        help="Ask a supported natural-language question using the local baseline",
+        help="Ask a natural-language question using the baseline or Ollama",
     )
     ask.add_argument("question")
+    ask.add_argument(
+        "--provider",
+        choices=("baseline", "ollama"),
+        default="baseline",
+    )
     ask.add_argument("--max-rows", type=int, default=20)
 
     query = subparsers.add_parser("query", help="Execute one validated read-only SQL query")
@@ -140,27 +146,63 @@ def _metric(settings: Settings, name: str, max_rows: int) -> int:
     return _query(settings, metric.sql, max_rows)
 
 
-def _print_agent_result(result: AgentResult, max_rows: int) -> None:
-    print("Provider: deterministic baseline (not an LLM)")
+def _print_agent_result(result: AgentResult, max_rows: int, provider_label: str) -> None:
+    print(f"Provider: {provider_label}")
     print(f"Question: {result.question}")
+    print(f"SQL attempts: {result.attempts}")
     print(f"SQL:\n{result.sql}\n")
     _print_rows(result.columns, result.rows)
     print(f"\nReturned {len(result.rows)} row(s), capped at {max_rows}.")
 
 
-def _ask(settings: Settings, question: str, max_rows: int) -> int:
+def _ask(
+    settings: Settings,
+    question: str,
+    max_rows: int,
+    provider: str,
+) -> int:
+    if provider == "baseline":
+        def generate(_prompt: str) -> str:
+            return generate_baseline_sql(question)
+
+        provider_label = "deterministic baseline (not an LLM)"
+    else:
+        if not settings.ollama_base_url:
+            print(
+                "Question rejected: OLLAMA_BASE_URL is missing from .env",
+                file=sys.stderr,
+            )
+            return 2
+
+        def generate(prompt: str) -> str:
+            return generate_ollama_sql(
+                prompt,
+                base_url=settings.ollama_base_url or "",
+                model=settings.ollama_model,
+                timeout_seconds=settings.ollama_timeout_seconds,
+            )
+
+        provider_label = f"Ollama ({settings.ollama_model})"
+
     try:
         result = run_sql_agent(
             question,
-            lambda _prompt: generate_baseline_sql(question),
+            generate,
             settings.database_path,
             max_rows=max_rows,
         )
-    except (UnsupportedQuestionError, UnsafeQueryError, ValueError) as error:
+    except (
+        httpx.HTTPError,
+        AgentQueryExecutionError,
+        OllamaResponseError,
+        UnsupportedQuestionError,
+        UnsafeQueryError,
+        ValueError,
+    ) as error:
         print(f"Question rejected: {error}", file=sys.stderr)
         return 2
 
-    _print_agent_result(result, max_rows)
+    _print_agent_result(result, max_rows, provider_label)
     return 0
 
 
@@ -252,7 +294,7 @@ def main() -> int:
     if args.command == "metric":
         return _metric(settings, args.name, args.max_rows)
     if args.command == "ask":
-        return _ask(settings, args.question, args.max_rows)
+        return _ask(settings, args.question, args.max_rows, args.provider)
     if args.command == "query":
         return _query(settings, args.sql, args.max_rows)
     if args.command == "ingest":

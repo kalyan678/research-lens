@@ -13,6 +13,7 @@ class Settings:
     openalex_api_key: str | None
     ollama_base_url: str | None
     ollama_model: str
+    ollama_timeout_seconds: float
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -26,4 +27,7 @@ class Settings:
             openalex_api_key=os.getenv("OPENALEX_API_KEY") or None,
             ollama_base_url=ollama_base_url.rstrip("/") or None,
             ollama_model=os.getenv("OLLAMA_MODEL", "qwen3:8b"),
+            ollama_timeout_seconds=float(
+                os.getenv("OLLAMA_TIMEOUT_SECONDS", "300")
+            ),
         )

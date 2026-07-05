@@ -4,6 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import duckdb
+
 from research_lens.database import connect_database
 from research_lens.schema import ALL_TABLES
 from research_lens.sql_safety import validate_read_only_query
@@ -15,6 +17,11 @@ class AgentResult:
     sql: str
     columns: list[str]
     rows: list[tuple[object, ...]]
+    attempts: int
+
+
+class AgentQueryExecutionError(RuntimeError):
+    """Raised when model-generated SQL still fails after one correction attempt."""
 
 
 SCHEMA_CONTEXT = """
@@ -46,14 +53,17 @@ Relationships:
 def extract_sql(model_response: str) -> str:
     cleaned = model_response.strip()
 
-    if cleaned.startswith("```") and cleaned.endswith("```"):
+    if cleaned.startswith("```"):
         lines = cleaned.splitlines()
-        cleaned = "\n".join(lines[1:-1])
+        sql_lines = lines[1:]
+        if sql_lines and sql_lines[-1].strip() == "```":
+            sql_lines = sql_lines[:-1]
+        cleaned = "\n".join(sql_lines)
 
     return cleaned.strip()
 
 
-def build_sql_prompt(question: str) -> str:
+def _build_sql_instructions(question: str) -> str:
     cleaned_question = question.strip()
     if not cleaned_question:
         raise ValueError("Question cannot be empty")
@@ -69,15 +79,71 @@ Rules:
 5. When counting publications after joining an authorship or affiliation table,
    use COUNT(DISTINCT work_id) to avoid counting one work once per author.
 6. Do not invent missing data or columns.
+7. Round percentages and averages to two decimal places.
+8. Add deterministic ORDER BY clauses to grouped or ranked results, including
+   a readable secondary sort for ties.
+9. Do not use LIMIT 1 for plural ranking questions unless the user requests
+   only the single top result.
+10. When grouping a named entity, group by both its stable id and display name.
+11. For institution or affiliation questions, use work_author_institutions.
+    The work_authors table does not contain institution_id.
 
 Schema:
 {SCHEMA_CONTEXT}
 
 Question:
 {cleaned_question}
-
-SQL:
 """.strip()
+
+
+def build_sql_prompt(question: str) -> str:
+    return f"{_build_sql_instructions(question)}\n\nSQL:"
+
+
+def build_sql_correction_prompt(
+    question: str,
+    failed_sql: str,
+    database_error: str,
+) -> str:
+    return f"""
+{_build_sql_instructions(question)}
+
+The previous SQL attempt failed during DuckDB execution.
+
+Failed SQL:
+{failed_sql}
+
+DuckDB error:
+{database_error}
+
+Start the query again instead of repeating the failed joins.
+Verify that every referenced column belongs to its table alias.
+For an author-to-institution relationship, join through
+work_author_institutions(work_id, author_id, institution_id).
+Correct the table and column relationships using the supplied schema.
+Return only one corrected read-only SELECT query.
+
+Corrected SQL:
+""".strip()
+
+
+def _execute_read_only_query(
+    database_path: Path,
+    sql: str,
+    max_rows: int,
+) -> tuple[list[str], list[tuple[object, ...]]]:
+    connection = connect_database(database_path, read_only=True)
+    try:
+        limited_sql = (
+            f"SELECT * FROM ({sql}) AS research_lens_agent_result "
+            f"LIMIT {max_rows}"
+        )
+        cursor = connection.execute(limited_sql)
+        rows = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+        return columns, rows
+    finally:
+        connection.close()
 
 
 def run_sql_agent(
@@ -92,25 +158,36 @@ def run_sql_agent(
 
     cleaned_question = question.strip()
     prompt = build_sql_prompt(cleaned_question)
-    model_response = generate(prompt)
-    sql = extract_sql(model_response)
-    validated_sql = validate_read_only_query(sql, ALL_TABLES)
 
-    connection = connect_database(database_path, read_only=True)
-    try:
-        limited_sql = (
-            f"SELECT * FROM ({validated_sql}) AS research_lens_agent_result "
-            f"LIMIT {max_rows}"
+    for attempt in range(2):
+        model_response = generate(prompt)
+        sql = extract_sql(model_response)
+        validated_sql = validate_read_only_query(sql, ALL_TABLES)
+
+        try:
+            columns, rows = _execute_read_only_query(
+                database_path,
+                validated_sql,
+                max_rows,
+            )
+        except duckdb.Error as error:
+            if attempt == 1:
+                raise AgentQueryExecutionError(
+                    f"Model SQL failed after one correction attempt: {error}"
+                ) from error
+            prompt = build_sql_correction_prompt(
+                cleaned_question,
+                validated_sql,
+                str(error),
+            )
+            continue
+
+        return AgentResult(
+            question=cleaned_question,
+            sql=validated_sql,
+            columns=columns,
+            rows=rows,
+            attempts=attempt + 1,
         )
-        cursor = connection.execute(limited_sql)
-        rows = cursor.fetchall()
-        columns = [column[0] for column in cursor.description]
-    finally:
-        connection.close()
 
-    return AgentResult(
-        question=cleaned_question,
-        sql=validated_sql,
-        columns=columns,
-        rows=rows,
-    )
+    raise AssertionError("SQL agent loop ended unexpectedly")

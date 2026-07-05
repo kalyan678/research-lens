@@ -169,6 +169,21 @@ The baseline is deliberately labelled as not being an LLM. It routes supported
 question patterns to tested metric SQL, providing a reliable benchmark and a
 fully local fallback while the replaceable model integration is developed.
 
+After installing Ollama locally and setting `OLLAMA_BASE_URL` and
+`OLLAMA_MODEL` in `.env`, ask unrestricted schema-grounded questions through
+the model. `OLLAMA_TIMEOUT_SECONDS` defaults to 300 for CPU-only laptops:
+
+```powershell
+research-lens check
+research-lens ask "How many publications are there by year?" --provider ollama
+```
+
+The model only proposes SQL. ResearchLens strips optional Markdown fences,
+parses and validates the SQL, rejects non-read-only operations, executes it
+through a read-only DuckDB connection, and caps the returned rows. If DuckDB
+rejects a safe query because of an invalid table-column relationship, the agent
+gives the error to the model and allows exactly one correction attempt.
+
 The query command accepts exactly one `SELECT` statement, restricts access to
 ResearchLens tables, blocks external file/network functions, opens DuckDB in
 read-only mode, and caps displayed results.
