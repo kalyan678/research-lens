@@ -6,7 +6,7 @@ metadata from OpenAlex, stores it in DuckDB, and uses either deterministic
 metrics or a local Ollama model to analyse publication trends, institutional
 activity, open-access rates, and topic impact.
 
-**Current status:** tested command-line MVP.
+**Current status:** tested CLI and local Streamlit application.
 
 ## Why ResearchLens?
 
@@ -25,6 +25,8 @@ in plain language while keeping query execution constrained and inspectable.
   primary-topic impact.
 - Translate supported questions through a deterministic baseline or a local
   Ollama model.
+- Explore entity counts, example questions, generated SQL, and tabular results
+  through a local Streamlit interface.
 - Display the generated SQL alongside the result.
 - Parse and validate SQL before opening a read-only database connection.
 - Allow one bounded model correction when DuckDB rejects an otherwise safe
@@ -42,7 +44,7 @@ Ingestion and normalization
      v
 DuckDB analytical model
 
-Natural-language question
+CLI or Streamlit question
      |
      +-- Deterministic metric baseline --+
      |                                   |
@@ -64,6 +66,7 @@ Natural-language question
 | DuckDB | Embedded analytical database |
 | Ollama | Optional local language-model runtime |
 | SQLGlot | SQL parsing and safety validation |
+| Streamlit | Local interactive web interface |
 | pytest and Ruff | Automated testing and code quality |
 
 ## Quick start
@@ -126,6 +129,19 @@ research-lens ingest `
 
 research-lens stats
 ```
+
+## Launch the web interface
+
+Start the local Streamlit application after initializing and loading the
+database:
+
+```powershell
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1
+```
+
+The application opens in your browser and uses the same query service and
+safety pipeline as the CLI. Binding to `127.0.0.1` keeps the development server
+accessible only from the local machine.
 
 ## Explore the data
 
@@ -208,12 +224,11 @@ ruff check src tests
   accuracy claim.
 - Small local models can produce valid but unnecessarily complex SQL, and their
   outputs are nondeterministic.
-- The current release provides a CLI; a web interface and deployment packaging
-  are not yet included.
+- The Streamlit interface is designed for local use and is not yet packaged for
+  public deployment.
 
 ## Roadmap
 
-- Add a local web interface for interactive questions and result tables.
 - Expand the demonstration dataset and evaluation suite.
 - Add continuous integration and release-quality documentation.
 - Explore caching, incremental-ingestion audit records, and deployment

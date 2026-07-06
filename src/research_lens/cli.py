@@ -5,9 +5,8 @@ import sys
 
 import httpx
 
-from research_lens.agent import AgentQueryExecutionError, AgentResult, run_sql_agent
+from research_lens.agent import AgentResult
 from research_lens.analytics import METRICS
-from research_lens.baseline import UnsupportedQuestionError, generate_baseline_sql
 from research_lens.config import Settings
 from research_lens.database import (
     connect_database,
@@ -15,8 +14,8 @@ from research_lens.database import (
     initialize_schema,
 )
 from research_lens.normalization import normalize_work
-from research_lens.ollama import OllamaResponseError, generate_ollama_sql
 from research_lens.openalex import OpenAlexClient
+from research_lens.query_service import Provider, QuestionRejectedError, answer_question
 from research_lens.repository import ResearchRepository
 from research_lens.schema import ALL_TABLES, CORE_TABLES
 from research_lens.sql_safety import UnsafeQueryError, validate_read_only_query
@@ -159,50 +158,20 @@ def _ask(
     settings: Settings,
     question: str,
     max_rows: int,
-    provider: str,
+    provider: Provider,
 ) -> int:
-    if provider == "baseline":
-        def generate(_prompt: str) -> str:
-            return generate_baseline_sql(question)
-
-        provider_label = "deterministic baseline (not an LLM)"
-    else:
-        if not settings.ollama_base_url:
-            print(
-                "Question rejected: OLLAMA_BASE_URL is missing from .env",
-                file=sys.stderr,
-            )
-            return 2
-
-        def generate(prompt: str) -> str:
-            return generate_ollama_sql(
-                prompt,
-                base_url=settings.ollama_base_url or "",
-                model=settings.ollama_model,
-                timeout_seconds=settings.ollama_timeout_seconds,
-            )
-
-        provider_label = f"Ollama ({settings.ollama_model})"
-
     try:
-        result = run_sql_agent(
+        response = answer_question(
+            settings,
             question,
-            generate,
-            settings.database_path,
+            provider,
             max_rows=max_rows,
         )
-    except (
-        httpx.HTTPError,
-        AgentQueryExecutionError,
-        OllamaResponseError,
-        UnsupportedQuestionError,
-        UnsafeQueryError,
-        ValueError,
-    ) as error:
+    except QuestionRejectedError as error:
         print(f"Question rejected: {error}", file=sys.stderr)
         return 2
 
-    _print_agent_result(result, max_rows, provider_label)
+    _print_agent_result(response.result, max_rows, response.provider_label)
     return 0
 
 
