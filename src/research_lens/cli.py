@@ -13,6 +13,7 @@ from research_lens.database import (
     database_is_reachable,
     initialize_schema,
 )
+from research_lens.evaluation import EVALUATION_QUESTIONS, evaluate_question
 from research_lens.normalization import normalize_work
 from research_lens.openalex import OpenAlexClient
 from research_lens.query_service import Provider, QuestionRejectedError, answer_question
@@ -52,6 +53,17 @@ def _build_parser() -> argparse.ArgumentParser:
     query = subparsers.add_parser("query", help="Execute one validated read-only SQL query")
     query.add_argument("--sql", required=True)
     query.add_argument("--max-rows", type=int, default=20)
+
+    evaluation = subparsers.add_parser(
+        "eval",
+        help="Run the ResearchLens natural-language question evaluation set",
+    )
+    evaluation.add_argument(
+        "--provider",
+        choices=("baseline", "ollama"),
+        default="baseline",
+    )
+    evaluation.add_argument("--max-rows", type=int, default=20)
 
     ingest = subparsers.add_parser("ingest", help="Ingest a bounded OpenAlex works slice")
     ingest.add_argument("--query", required=True)
@@ -175,6 +187,59 @@ def _ask(
     return 0
 
 
+def _eval(settings: Settings, provider: Provider, max_rows: int) -> int:
+    selected_questions = [
+        question for question in EVALUATION_QUESTIONS if provider in question.providers
+    ]
+    results = []
+    for index, question in enumerate(selected_questions, start=1):
+        print(
+            f"[{index}/{len(selected_questions)}] Running {question.id} "
+            f"({question.category})...",
+            flush=True,
+        )
+        result = evaluate_question(settings, question, provider, max_rows=max_rows)
+        results.append(result)
+        print(
+            f"[{index}/{len(selected_questions)}] "
+            f"{'PASS' if result.passed else 'FAIL'} in "
+            f"{round(result.duration_seconds, 2)}s",
+            flush=True,
+        )
+
+    passed_count = sum(result.passed for result in results)
+    total_count = len(results)
+    rows = [
+        (
+            result.question_id,
+            result.category,
+            "PASS" if result.passed else "FAIL",
+            result.row_count,
+            result.attempts if result.attempts is not None else "N/A",
+            round(result.duration_seconds, 2),
+            result.reason,
+        )
+        for result in results
+    ]
+
+    print(f"Provider: {provider}")
+    print(f"Evaluation questions: {total_count}")
+    print(f"Passed: {passed_count}/{total_count}\n")
+    _print_rows(
+        [
+            "question_id",
+            "category",
+            "status",
+            "rows",
+            "attempts",
+            "seconds",
+            "reason",
+        ],
+        rows,
+    )
+    return 0 if passed_count == total_count else 1
+
+
 def _query(settings: Settings, sql: str, max_rows: int) -> int:
     if not 1 <= max_rows <= 1_000:
         print("--max-rows must be between 1 and 1000", file=sys.stderr)
@@ -266,6 +331,8 @@ def main() -> int:
         return _ask(settings, args.question, args.max_rows, args.provider)
     if args.command == "query":
         return _query(settings, args.sql, args.max_rows)
+    if args.command == "eval":
+        return _eval(settings, args.provider, args.max_rows)
     if args.command == "ingest":
         return _ingest(settings, args)
 

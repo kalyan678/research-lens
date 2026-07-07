@@ -1,6 +1,6 @@
-# ResearchLens MVP Evaluation
+# ResearchLens Evaluation
 
-Evaluation date: 2026-07-05
+Evaluation dates: 2026-07-05 and 2026-07-07
 
 ## Environment
 
@@ -9,7 +9,9 @@ Evaluation date: 2026-07-05
 - Model allocation observed by `ollama ps`: 2.5 GB
 - Processing observed: 75% CPU / 25% GPU
 - Context allocation: 4096 tokens
-- Database: DuckDB with 25 OpenAlex works from a bounded search slice
+- Database: DuckDB with a bounded OpenAlex search slice
+  - MVP run: 25 works
+  - Expanded Day 2 run: 300 works for `large language models`, 2023-2026
 
 ## Acceptance criteria
 
@@ -24,7 +26,48 @@ A question passes when the generated SQL:
 Formatting and unnecessary SQL complexity are recorded separately from
 business-result correctness.
 
-## Results
+## Automated evaluation command
+
+ResearchLens now includes a repeatable evaluation harness:
+
+```powershell
+research-lens eval --provider baseline --max-rows 20
+research-lens eval --provider ollama --max-rows 20
+```
+
+The evaluator checks row counts and expected analytical column groups. This is
+not a full semantic proof, but it is stronger than manual smoke testing because
+the same question set can be run after prompt, schema, model, or data changes.
+
+## Day 2 expanded-data results
+
+Dataset after expansion:
+
+| Entity | Count |
+|---|---:|
+| Works | 300 |
+| Authors | 1,984 |
+| Institutions | 557 |
+| Topics | 146 |
+| Sources | 119 |
+
+Deterministic baseline result:
+
+| Provider | Questions | Passed | Notes |
+|---|---:|---:|---|
+| Baseline | 6 | 6 | Fast deterministic routing to documented metrics. |
+
+First automated Ollama result:
+
+| Provider | Questions | Passed | Notes |
+|---|---:|---:|---|
+| Ollama `qwen2.5-coder:3b` | 7 | 4 | Correct execution on several scenarios, but high latency and alias variation caused failures in the stricter evaluator. |
+
+Observed Ollama latency ranged from about 100 to 171 seconds per question on
+the local machine during the first full evaluation run. The CLI now prints
+per-question progress so longer model evaluations do not look frozen.
+
+## MVP manual evaluation results
 
 | Scenario | Initial outcome | Final outcome | Observation |
 |---|---|---|---|
@@ -68,9 +111,10 @@ prompt subsequently solved the four-table question in one attempt.
 
 ## Known limitations
 
-- The 25-work dataset is too small for general research-market conclusions.
-- The evaluation set contains five questions and should be expanded before any
-  production claim.
+- The 300-work dataset is useful for a local portfolio demo but is still too
+  small for general research-market conclusions.
+- The evaluation set contains seven questions and should be expanded before
+  any production-quality accuracy claim.
 - Numeric presentation can vary across model generations.
 - Equivalent SQL may differ in complexity, ordering, and aliases.
 - Latency depends strongly on local CPU/GPU allocation and whether the model is

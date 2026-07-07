@@ -6,7 +6,8 @@ metadata from OpenAlex, stores it in DuckDB, and uses either deterministic
 metrics or a local Ollama model to analyse publication trends, institutional
 activity, open-access rates, and topic impact.
 
-**Current status:** tested CLI and local Streamlit application.
+**Current status:** tested CLI, local Streamlit application, expanded
+300-work dataset, and repeatable evaluation harness.
 
 ## Why ResearchLens?
 
@@ -27,6 +28,8 @@ in plain language while keeping query execution constrained and inspectable.
   Ollama model.
 - Explore entity counts, example questions, generated SQL, and tabular results
   through a local Streamlit interface.
+- Evaluate baseline and Ollama question answering with a repeatable CLI
+  evaluation suite.
 - Display the generated SQL alongside the result.
 - Parse and validate SQL before opening a read-only database connection.
 - Allow one bounded model correction when DuckDB rejects an otherwise safe
@@ -130,6 +133,9 @@ research-lens ingest `
 research-lens stats
 ```
 
+For a richer portfolio-sized local demo, this project has also been tested
+with 300 OpenAlex works for `large language models` from 2023 through 2026.
+
 ## Launch the web interface
 
 Start the local Streamlit application after initializing and loading the
@@ -199,13 +205,32 @@ on prompt instructions.
 
 ## Evaluation
 
-The CLI MVP was evaluated with five representative analytical questions using
-`qwen2.5-coder:3b`. All five scenarios ultimately produced correct executable
-results after prompt refinement, but the initial run included one failure, one
-partial result, and two presentation-quality issues.
+ResearchLens includes a repeatable natural-language evaluation command. It
+checks whether generated answers execute safely, return enough rows, and expose
+the expected analytical columns.
+
+Run the deterministic baseline evaluation:
+
+```powershell
+research-lens eval --provider baseline --max-rows 20
+```
+
+On the 300-work local dataset, the deterministic baseline passed all six
+supported evaluation questions.
+
+Run the local model evaluation:
+
+```powershell
+research-lens eval --provider ollama --max-rows 20
+```
+
+With `qwen2.5-coder:3b`, the first automated Ollama evaluation passed four of
+seven questions. The failures were useful engineering signals: local model
+latency was high, and some valid-looking answers used column aliases that did
+not match the stricter evaluator expectations.
 
 See [the evaluation report](docs/evaluation.md) for the acceptance criteria,
-initial outcomes, corrected outcomes, and known model limitations.
+outcomes, and known model limitations.
 
 Run the complete deterministic verification:
 
@@ -216,20 +241,20 @@ ruff check src tests
 
 ## Current limitations
 
-- The demonstration database contains only 25 search-selected works and cannot
-  represent the global research landscape.
+- The demonstration database contains a bounded 300-work OpenAlex slice and
+  cannot represent the global research landscape.
 - Citation counts indicate attention, not research quality, and are affected by
   publication age and outliers.
-- The five-question evaluation set is too small for a production-quality
-  accuracy claim.
+- The seven-question evaluation set is still too small for a
+  production-quality accuracy claim.
 - Small local models can produce valid but unnecessarily complex SQL, and their
-  outputs are nondeterministic.
+  outputs are nondeterministic and sometimes slow.
 - The Streamlit interface is designed for local use and is not yet packaged for
   public deployment.
 
 ## Roadmap
 
-- Expand the demonstration dataset and evaluation suite.
-- Add continuous integration and release-quality documentation.
+- Add continuous integration and publish an evaluation summary table.
+- Add release-quality setup and troubleshooting documentation.
 - Explore caching, incremental-ingestion audit records, and deployment
   packaging.
