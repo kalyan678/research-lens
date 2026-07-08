@@ -14,7 +14,7 @@ from research_lens.config import Settings
 from research_lens.ollama import OllamaResponseError, generate_ollama_sql
 from research_lens.sql_safety import UnsafeQueryError
 
-Provider = Literal["baseline", "ollama"]
+Provider = Literal["baseline", "ollama", "hybrid"]
 
 
 class QuestionRejectedError(RuntimeError):
@@ -42,6 +42,32 @@ def answer_question(
             return generate_baseline_sql(question)
 
         provider_label = "Deterministic baseline"
+    elif provider == "hybrid":
+        try:
+            baseline_sql = generate_baseline_sql(question)
+
+            def generate(_prompt: str) -> str:
+                return baseline_sql
+
+            provider_label = "Hybrid (baseline fast path)"
+        except UnsupportedQuestionError:
+            base_url = settings.ollama_base_url
+            if not base_url:
+                raise QuestionRejectedError(
+                    "This question is outside the baseline metric families and "
+                    "OLLAMA_BASE_URL is missing from .env. Configure Ollama or "
+                    "ask a supported baseline question."
+                ) from None
+
+            def generate(prompt: str) -> str:
+                return generate_ollama_sql(
+                    prompt,
+                    base_url=base_url,
+                    model=settings.ollama_model,
+                    timeout_seconds=settings.ollama_timeout_seconds,
+                )
+
+            provider_label = f"Hybrid (Ollama fallback: {settings.ollama_model})"
     elif provider == "ollama":
         base_url = settings.ollama_base_url
         if not base_url:

@@ -41,3 +41,34 @@ def test_generate_baseline_sql_normalizes_case_and_whitespace() -> None:
 def test_generate_baseline_sql_rejects_unknown_question() -> None:
     with pytest.raises(UnsupportedQuestionError, match="baseline supports"):
         generate_baseline_sql("Who wrote the earliest paper?")
+
+
+def test_generate_baseline_sql_rejects_author_affiliation_detail_question() -> None:
+    with pytest.raises(UnsupportedQuestionError, match="quoted title"):
+        generate_baseline_sql(
+            "List each author and institution for a named paper."
+        )
+
+
+def test_generate_baseline_sql_routes_quoted_author_affiliation_question() -> None:
+    sql = generate_baseline_sql(
+        "List each author and institution for the paper titled "
+        "'Bias and Fairness in Large Language Models: A Survey'."
+    )
+
+    assert "JOIN work_author_institutions AS wai" in sql
+    assert "a.display_name AS author" in sql
+    assert "i.display_name AS institution" in sql
+    assert (
+        "WHERE w.title = 'Bias and Fairness in Large Language Models: A Survey'"
+        in sql
+    )
+
+
+def test_generate_baseline_sql_escapes_quoted_titles() -> None:
+    sql = generate_baseline_sql(
+        'List each author and institution for the paper titled '
+        '"ResearchLens\'s Demo".'
+    )
+
+    assert "WHERE w.title = 'ResearchLens''s Demo'" in sql

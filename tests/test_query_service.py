@@ -63,6 +63,38 @@ def test_answer_question_uses_the_deterministic_baseline(tmp_path: Path) -> None
     ]
 
 
+def test_answer_question_uses_hybrid_baseline_fast_path_without_ollama(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "research_lens.duckdb"
+    _database_with_works(database_path)
+
+    response = answer_question(
+        _settings(database_path),
+        "What is the open access percentage by year?",
+        "hybrid",
+    )
+
+    assert response.provider_label == "Hybrid (baseline fast path)"
+    assert response.result.columns == [
+        "publication_year",
+        "total_publications",
+        "open_access_publications",
+        "open_access_percentage",
+    ]
+
+
+def test_answer_question_explains_missing_hybrid_ollama_fallback(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(QuestionRejectedError, match="outside the baseline"):
+        answer_question(
+            _settings(tmp_path / "unused.duckdb"),
+            "Who wrote the earliest paper?",
+            "hybrid",
+        )
+
+
 def test_answer_question_explains_missing_ollama_configuration(
     tmp_path: Path,
 ) -> None:

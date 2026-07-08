@@ -49,6 +49,8 @@ def test_build_sql_prompt_contains_question_schema_and_rules() -> None:
     assert "Round percentages and averages to two decimal places" in prompt
     assert "deterministic ORDER BY" in prompt
     assert "work_authors table does not contain institution_id" in prompt
+    assert "Prefer simple SQL over unnecessary CTEs" in prompt
+    assert "open_access_percentage" in prompt
 
 
 def test_build_sql_prompt_rejects_empty_question() -> None:

@@ -70,6 +70,7 @@ def _render_sidebar(settings: Settings) -> tuple[Provider, int]:
     st.sidebar.header("Query settings")
 
     provider_labels: dict[str, Provider] = {
+        "Hybrid - recommended": "hybrid",
         "Deterministic baseline": "baseline",
         f"Ollama - {settings.ollama_model}": "ollama",
     }
@@ -77,12 +78,13 @@ def _render_sidebar(settings: Settings) -> tuple[Provider, int]:
         "Query engine",
         options=list(provider_labels),
         captions=(
-            "Fast, repeatable answers for the three tested metric families.",
+            "Fast tested metrics first, local Ollama fallback for broader questions.",
+            "Fast, repeatable answers for covered analytical templates.",
             "Flexible schema-grounded SQL from your local model.",
         ),
         help=(
-            "The baseline routes three supported question families to tested SQL. "
-            "Ollama generates SQL from the full schema."
+            "Hybrid mode uses tested SQL for known metric families and only calls "
+            "Ollama for questions outside that deterministic coverage."
         ),
         key="provider_choice",
         on_change=_clear_results,
@@ -102,8 +104,12 @@ def _render_sidebar(settings: Settings) -> tuple[Provider, int]:
     st.sidebar.divider()
     st.sidebar.subheader("Environment")
     st.sidebar.caption(f"Database\n`{settings.database_path}`")
-    if provider == "baseline":
+    if provider in {"baseline", "hybrid"}:
         st.sidebar.success("Baseline ready")
+        if provider == "hybrid" and settings.ollama_base_url:
+            st.sidebar.success("Ollama fallback ready")
+        elif provider == "hybrid":
+            st.sidebar.info("Ollama fallback not configured")
     elif settings.ollama_base_url:
         st.sidebar.success("Ollama ready")
     else:
@@ -233,8 +239,8 @@ def main() -> None:
     with st.expander("How to use ResearchLens"):
         st.markdown(
             """
-            1. **Choose an engine.** Use the baseline for the tested examples or
-               Ollama for broader schema-grounded questions.
+            1. **Choose an engine.** Use hybrid mode for most questions, baseline
+               for deterministic metric demos, or Ollama for direct model testing.
             2. **Ask a question.** Start with an example or write your own.
             3. **Inspect the answer.** Review the result table, timing, and SQL.
             4. **Export if useful.** Download the returned rows as CSV.
@@ -247,8 +253,8 @@ def main() -> None:
     with st.container(border=True):
         st.subheader("Ask a research question")
         st.write(
-            "Choose a tested example or write your own question. Use Ollama for "
-            "questions outside the deterministic metric families."
+            "Choose a tested example or write your own question. Hybrid mode "
+            "uses deterministic SQL where possible and Ollama where needed."
         )
 
         example_columns = st.columns(len(EXAMPLE_QUESTIONS))
@@ -268,18 +274,21 @@ def main() -> None:
             placeholder="Example: Which institutions have the most publications?",
         )
 
-        if provider == "baseline":
+        if provider == "hybrid":
+            st.info(
+                "Hybrid mode answers known metrics with tested SQL and falls "
+                "back to Ollama for broader schema-grounded questions."
+            )
+        elif provider == "baseline":
             st.info(
                 "Baseline mode supports institution rankings, yearly open-access "
-                "rates, and primary-topic impact."
+                "rates, primary-topic impact, and quoted-title author affiliations."
             )
         elif not settings.ollama_base_url:
             st.warning("Configure OLLAMA_BASE_URL in .env before using Ollama.")
 
         question_is_empty = not question.strip()
-        ollama_is_unavailable = (
-            provider == "ollama" and not settings.ollama_base_url
-        )
+        ollama_is_unavailable = provider == "ollama" and not settings.ollama_base_url
         action_columns = st.columns([3, 1])
 
         submitted = action_columns[0].button(

@@ -3,11 +3,12 @@
 ResearchLens is a local-first research intelligence assistant that converts
 natural-language questions into safe, read-only SQL. It ingests scholarly
 metadata from OpenAlex, stores it in DuckDB, and uses either deterministic
-metrics or a local Ollama model to analyse publication trends, institutional
-activity, open-access rates, and topic impact.
+SQL templates, a hybrid router, or a local Ollama model to analyse publication
+trends, institutional activity, open-access rates, topic impact, and named-paper
+author affiliations.
 
 **Current status:** tested CLI, local Streamlit application, expanded
-300-work dataset, and repeatable evaluation harness.
+300-work dataset, hybrid query routing, and repeatable evaluation harness.
 
 ## Why ResearchLens?
 
@@ -22,14 +23,14 @@ in plain language while keeping query execution constrained and inspectable.
 - Normalize works, authors, institutions, topics, sources, and relationships.
 - Store the analytical model locally in DuckDB without a database server or
   Docker.
-- Run three documented metrics for institutional activity, open access, and
-  primary-topic impact.
-- Translate supported questions through a deterministic baseline or a local
-  Ollama model.
+- Run documented analytical templates for institutional activity, open access,
+  primary-topic impact, and named-paper author affiliations.
+- Translate questions through a recommended hybrid router, deterministic
+  baseline, or local Ollama model.
 - Explore entity counts, example questions, generated SQL, and tabular results
   through a local Streamlit interface.
-- Evaluate baseline and Ollama question answering with a repeatable CLI
-  evaluation suite.
+- Evaluate baseline, hybrid, and Ollama question answering with a repeatable
+  CLI evaluation suite.
 - Display the generated SQL alongside the result.
 - Parse and validate SQL before opening a read-only database connection.
 - Allow one bounded model correction when DuckDB rejects an otherwise safe
@@ -49,9 +50,11 @@ DuckDB analytical model
 
 CLI or Streamlit question
      |
-     +-- Deterministic metric baseline --+
-     |                                   |
-     +-- Ollama SQL generation ----------+--> SQL validation
+     +-- Hybrid router ------------------+
+     |       |
+     |       +-- Deterministic templates -+
+     |       |
+     |       +-- Ollama fallback ---------+--> SQL validation
                                                  |
                                                  v
                                       Read-only DuckDB execution
@@ -81,7 +84,8 @@ CLI or Streamlit question
 - Ollama and a local model only if you want model-generated SQL
 
 The ingestion pipeline, analytical metrics, deterministic baseline, and tests
-work without Ollama.
+work without Ollama. Hybrid mode also works without Ollama for covered
+deterministic question families.
 
 ### Install
 
@@ -167,12 +171,18 @@ research-lens metric open-access-by-year
 research-lens metric primary-topic-impact --max-rows 10
 ```
 
-Ask a supported question through the deterministic baseline:
+Ask a question through the recommended hybrid provider:
 
 ```powershell
 research-lens ask "Which institutions have the most publications?" --max-rows 10
 research-lens ask "What is the open access percentage by year?"
-research-lens ask "Which primary topics have the highest citation impact?" --max-rows 10
+research-lens ask "List each author and institution for the paper titled 'Bias and Fairness in Large Language Models: A Survey'."
+```
+
+Ask the same supported question families through the deterministic baseline:
+
+```powershell
+research-lens ask "Which primary topics have the highest citation impact?" --provider baseline --max-rows 10
 ```
 
 Ask a broader, schema-grounded question through Ollama:
@@ -209,14 +219,24 @@ ResearchLens includes a repeatable natural-language evaluation command. It
 checks whether generated answers execute safely, return enough rows, and expose
 the expected analytical columns.
 
+Run the recommended hybrid evaluation:
+
+```powershell
+research-lens eval --provider hybrid --max-rows 20
+```
+
+On the 300-work local dataset, hybrid mode passed all seven evaluation
+questions. The covered deterministic paths finished in under one second per
+question during the latest run.
+
 Run the deterministic baseline evaluation:
 
 ```powershell
 research-lens eval --provider baseline --max-rows 20
 ```
 
-On the 300-work local dataset, the deterministic baseline passed all six
-supported evaluation questions.
+The deterministic baseline also passed all seven supported evaluation
+questions after adding a named-paper author-affiliation template.
 
 Run the local model evaluation:
 
@@ -231,6 +251,9 @@ not match the stricter evaluator expectations.
 
 See [the evaluation report](docs/evaluation.md) for the acceptance criteria,
 outcomes, and known model limitations.
+
+For a concise project narrative, see
+[the portfolio summary](docs/portfolio-summary.md).
 
 Run the complete deterministic verification:
 
@@ -247,14 +270,15 @@ ruff check src tests
   publication age and outliers.
 - The seven-question evaluation set is still too small for a
   production-quality accuracy claim.
-- Small local models can produce valid but unnecessarily complex SQL, and their
-  outputs are nondeterministic and sometimes slow.
+- Small local models can produce invalid or unnecessarily complex SQL, and
+  their outputs are nondeterministic and sometimes slow. Hybrid mode reduces
+  this risk by routing known intents to deterministic templates.
 - The Streamlit interface is designed for local use and is not yet packaged for
   public deployment.
 
 ## Roadmap
 
-- Add continuous integration and publish an evaluation summary table.
+- Add continuous integration.
 - Add release-quality setup and troubleshooting documentation.
 - Explore caching, incremental-ingestion audit records, and deployment
   packaging.

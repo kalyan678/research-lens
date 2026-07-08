@@ -45,8 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     ask.add_argument("question")
     ask.add_argument(
         "--provider",
-        choices=("baseline", "ollama"),
-        default="baseline",
+        choices=("baseline", "ollama", "hybrid"),
+        default="hybrid",
     )
     ask.add_argument("--max-rows", type=int, default=20)
 
@@ -60,7 +60,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     evaluation.add_argument(
         "--provider",
-        choices=("baseline", "ollama"),
+        choices=("baseline", "ollama", "hybrid"),
         default="baseline",
     )
     evaluation.add_argument("--max-rows", type=int, default=20)

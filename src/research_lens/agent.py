@@ -87,6 +87,11 @@ Rules:
 10. When grouping a named entity, group by both its stable id and display name.
 11. For institution or affiliation questions, use work_author_institutions.
     The work_authors table does not contain institution_id.
+12. Prefer simple SQL over unnecessary CTEs.
+13. Use stable readable aliases when relevant:
+    institution, publication_count, total_publications,
+    open_access_publications, open_access_percentage, topic,
+    average_citations, author.
 
 Schema:
 {SCHEMA_CONTEXT}

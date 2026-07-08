@@ -1,6 +1,6 @@
 # ResearchLens Evaluation
 
-Evaluation dates: 2026-07-05 and 2026-07-07
+Evaluation dates: 2026-07-05, 2026-07-07, and 2026-07-08
 
 ## Environment
 
@@ -32,12 +32,32 @@ ResearchLens now includes a repeatable evaluation harness:
 
 ```powershell
 research-lens eval --provider baseline --max-rows 20
+research-lens eval --provider hybrid --max-rows 20
 research-lens eval --provider ollama --max-rows 20
 ```
 
 The evaluator checks row counts and expected analytical column groups. This is
 not a full semantic proof, but it is stronger than manual smoke testing because
 the same question set can be run after prompt, schema, model, or data changes.
+
+## Day 3 hybrid-routing results
+
+After the pure Ollama evaluation exposed latency and reliability issues, the
+query service was updated with a hybrid provider. Hybrid mode routes covered
+business intents to deterministic SQL templates and keeps Ollama available as
+a fallback for unsupported exploratory questions.
+
+Latest automated results on the 300-work dataset:
+
+| Provider | Questions | Passed | Notes |
+|---|---:|---:|---|
+| Baseline | 7 | 7 | Deterministic templates for metric and named-paper affiliation questions. |
+| Hybrid | 7 | 7 | Recommended path; all evaluation questions used covered deterministic templates. |
+| Ollama `qwen2.5-coder:3b` | 7 | 4 | Useful for exploratory fallback, but slower and less reliable on the full evaluation suite. |
+
+The latest hybrid evaluation finished each question in less than one second
+during the recorded run, compared with pure Ollama calls that previously ranged
+from about 100 to 263 seconds per question and still failed some cases.
 
 ## Day 2 expanded-data results
 
@@ -51,7 +71,7 @@ Dataset after expansion:
 | Topics | 146 |
 | Sources | 119 |
 
-Deterministic baseline result:
+Initial deterministic baseline result:
 
 | Provider | Questions | Passed | Notes |
 |---|---:|---:|---|
@@ -63,9 +83,9 @@ First automated Ollama result:
 |---|---:|---:|---|
 | Ollama `qwen2.5-coder:3b` | 7 | 4 | Correct execution on several scenarios, but high latency and alias variation caused failures in the stricter evaluator. |
 
-Observed Ollama latency ranged from about 100 to 171 seconds per question on
-the local machine during the first full evaluation run. The CLI now prints
-per-question progress so longer model evaluations do not look frozen.
+Observed Ollama latency ranged from about 100 to 263 seconds per question on
+the local machine during evaluation runs. The CLI now prints per-question
+progress so longer model evaluations do not look frozen.
 
 ## MVP manual evaluation results
 
@@ -119,3 +139,5 @@ prompt subsequently solved the four-table question in one attempt.
 - Equivalent SQL may differ in complexity, ordering, and aliases.
 - Latency depends strongly on local CPU/GPU allocation and whether the model is
   already loaded.
+- Hybrid routing improves reliability for covered intents, but unsupported
+  exploratory questions still depend on model quality.

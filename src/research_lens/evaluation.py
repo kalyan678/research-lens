@@ -16,7 +16,7 @@ class EvaluationQuestion:
     question: str
     expected_column_groups: tuple[tuple[str, ...], ...]
     min_rows: int
-    providers: tuple[Provider, ...] = ("baseline", "ollama")
+    providers: tuple[Provider, ...] = ("baseline", "ollama", "hybrid")
 
 
 @dataclass(frozen=True)
@@ -151,7 +151,6 @@ EVALUATION_QUESTIONS: tuple[EvaluationQuestion, ...] = (
             ("institution", "institution_name"),
         ),
         min_rows=1,
-        providers=("ollama",),
     ),
 )
 
