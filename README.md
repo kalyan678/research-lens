@@ -1,5 +1,7 @@
 # ResearchLens
 
+[![CI](https://github.com/kalyan678/research-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/kalyan678/research-lens/actions/workflows/ci.yml)
+
 ResearchLens is a local-first research intelligence assistant that converts
 natural-language questions into safe, read-only SQL. It ingests scholarly
 metadata from OpenAlex, stores it in DuckDB, and uses either deterministic
