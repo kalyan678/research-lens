@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">ResearchLens dashboard overview</title>
+  <desc id="desc">A polished screenshot-style overview of the ResearchLens Streamlit dashboard.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="100%" stop-color="#eef4ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#1f2a44" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="760" fill="url(#bg)"/>
+  <rect x="48" y="38" width="1184" height="684" rx="28" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="48" y="38" width="268" height="684" rx="28" fill="#111827"/>
+  <text x="82" y="94" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff">ResearchLens</text>
+  <text x="82" y="126" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#cbd5e1">Private research analytics</text>
+  <line x1="82" y1="158" x2="282" y2="158" stroke="#374151"/>
+  <text x="82" y="198" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#e5e7eb">Query settings</text>
+  <rect x="82" y="220" width="200" height="44" rx="12" fill="#2563eb"/>
+  <text x="100" y="248" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">Hybrid - recommended</text>
+  <rect x="82" y="278" width="200" height="44" rx="12" fill="#1f2937"/>
+  <text x="100" y="306" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#d1d5db">Deterministic baseline</text>
+  <rect x="82" y="336" width="200" height="44" rx="12" fill="#1f2937"/>
+  <text x="100" y="364" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#d1d5db">Ollama - qwen2.5-coder</text>
+  <text x="82" y="430" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#e5e7eb">Environment</text>
+  <rect x="82" y="452" width="200" height="58" rx="12" fill="#064e3b"/>
+  <text x="100" y="478" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#bbf7d0">Baseline ready</text>
+  <text x="100" y="498" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#d1fae5">Ollama fallback ready</text>
+  <text x="82" y="658" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#9ca3af">All execution stays local.</text>
+
+  <text x="366" y="100" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="800" fill="#111827">ResearchLens</text>
+  <text x="366" y="137" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#374151">Ask questions. Inspect SQL. Trust the result.</text>
+  <text x="366" y="172" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#64748b">Explore scholarly trends with safe, local, read-only SQL over OpenAlex metadata.</text>
+  <text x="366" y="214" font-family="Consolas, monospace" font-size="14" fill="#2563eb">LOCAL-FIRST   READ-ONLY SQL   OPENALEX DATA</text>
+
+  <text x="366" y="282" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="750" fill="#111827">Research snapshot</text>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="366" y="314" width="242" height="104" rx="18" fill="#eff6ff"/>
+    <text x="390" y="350" font-size="15" fill="#475569">Works</text>
+    <text x="390" y="392" font-size="36" font-weight="800" fill="#1d4ed8">300</text>
+    <rect x="632" y="314" width="242" height="104" rx="18" fill="#f0fdf4"/>
+    <text x="656" y="350" font-size="15" fill="#475569">Authors</text>
+    <text x="656" y="392" font-size="36" font-weight="800" fill="#15803d">1,984</text>
+    <rect x="898" y="314" width="242" height="104" rx="18" fill="#fff7ed"/>
+    <text x="922" y="350" font-size="15" fill="#475569">Institutions</text>
+    <text x="922" y="392" font-size="36" font-weight="800" fill="#c2410c">557</text>
+    <rect x="366" y="442" width="242" height="104" rx="18" fill="#faf5ff"/>
+    <text x="390" y="478" font-size="15" fill="#475569">Topics</text>
+    <text x="390" y="520" font-size="36" font-weight="800" fill="#7e22ce">146</text>
+    <rect x="632" y="442" width="242" height="104" rx="18" fill="#f8fafc"/>
+    <text x="656" y="478" font-size="15" fill="#475569">Sources</text>
+    <text x="656" y="520" font-size="36" font-weight="800" fill="#334155">119</text>
+  </g>
+
+  <rect x="366" y="586" width="774" height="86" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="390" y="622" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">Ask a research question</text>
+  <text x="390" y="652" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b">Hybrid mode uses deterministic SQL where possible and Ollama where needed.</text>
+  <rect x="928" y="616" width="168" height="34" rx="12" fill="#2563eb"/>
+  <text x="970" y="638" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">Run analysis</text>
+</svg>

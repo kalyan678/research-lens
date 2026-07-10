@@ -155,6 +155,20 @@ The application opens in your browser and uses the same query service and
 safety pipeline as the CLI. Binding to `127.0.0.1` keeps the development server
 accessible only from the local machine.
 
+## Demo screenshots
+
+### Local research dashboard
+
+![ResearchLens dashboard](docs/assets/researchlens-dashboard.svg)
+
+### Hybrid query result
+
+![ResearchLens hybrid query result](docs/assets/researchlens-results.svg)
+
+### Generated SQL and safety checks
+
+![ResearchLens SQL and safety view](docs/assets/researchlens-sql-safety.svg)
+
 ## Explore the data
 
 Inspect the schema:
